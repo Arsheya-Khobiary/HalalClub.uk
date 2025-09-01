@@ -8,8 +8,8 @@ import { ArrowRight, MapPin } from 'lucide-react'
 export function Hero() {
   const handlePrimaryCTA = () => {
     // Analytics: fire whyus_hero_cta_clicked
-    if (typeof window !== 'undefined' && window.gtag) {
-      window.gtag('event', 'whyus_hero_cta_clicked', {
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', 'whyus_hero_cta_clicked', {
         event_category: 'conversion',
         event_label: 'hero_register_button'
       })
@@ -91,7 +91,7 @@ export function Hero() {
               <div className="space-y-4 md:space-y-6">
                 <div className="aspect-[4/3] rounded-3xl overflow-hidden shadow-lg ring-1 ring-black/5 transform rotate-2 hover:rotate-0 transition-transform duration-300">
                   <Image
-                    src="https://images.unsplash.com/photo-1563379091339-03246963d293?w=400"
+                    src="/placeholder-restaurant.jpg"
                     alt="Delicious halal biryani"
                     fill
                     className="object-cover"
@@ -99,7 +99,7 @@ export function Hero() {
                 </div>
                 <div className="aspect-square rounded-3xl overflow-hidden shadow-lg ring-1 ring-black/5 transform -rotate-1 hover:rotate-0 transition-transform duration-300">
                   <Image
-                    src="https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?w=400"
+                    src="/placeholder-restaurant.jpg"
                     alt="Grilled halal meat"
                     fill
                     className="object-cover"
@@ -110,7 +110,7 @@ export function Hero() {
               <div className="space-y-4 md:space-y-6 mt-8">
                 <div className="aspect-square rounded-3xl overflow-hidden shadow-lg ring-1 ring-black/5 transform rotate-1 hover:rotate-0 transition-transform duration-300">
                   <Image
-                    src="https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400"
+                    src="/placeholder-restaurant.jpg"
                     alt="Traditional halal curry"
                     fill
                     className="object-cover"
@@ -118,7 +118,7 @@ export function Hero() {
                 </div>
                 <div className="aspect-[4/3] rounded-3xl overflow-hidden shadow-lg ring-1 ring-black/5 transform -rotate-2 hover:rotate-0 transition-transform duration-300">
                   <Image
-                    src="https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400"
+                    src="/placeholder-restaurant.jpg"
                     alt="Fresh halal ingredients"
                     fill
                     className="object-cover"

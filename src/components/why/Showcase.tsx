@@ -7,9 +7,9 @@ import Link from 'next/link'
 
 export function Showcase() {
   const bestSellers = [
-    { name: "Lamb Biryani", price: "£12.99", image: "https://images.unsplash.com/photo-1563379091339-03246963d293?w=300" },
-    { name: "Mixed Grill", price: "£18.99", image: "https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?w=300" },
-    { name: "Chicken Karahi", price: "£10.99", image: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=300" }
+    { name: "Lamb Biryani", price: "£12.99", image: "/placeholder-restaurant.jpg" },
+    { name: "Mixed Grill", price: "£18.99", image: "/placeholder-restaurant.jpg" },
+    { name: "Chicken Karahi", price: "£10.99", image: "/placeholder-restaurant.jpg" }
   ]
 
   const reviews = [
