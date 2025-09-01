@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
         const session = event.data.object as Stripe.Checkout.Session
         const { submissionId, ownerUid } = session.metadata || {}
 
-        if (submissionId && ownerUid) {
+        if (submissionId && ownerUid && adminDb) {
           // Mark submission as paid
           await adminDb
             .collection('submissions')
