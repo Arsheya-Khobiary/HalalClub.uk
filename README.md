@@ -1,6 +1,17 @@
-# Halal Food Club
+# 🍽️ Halal Food Club
 
-A comprehensive platform for discovering authentic halal restaurants across the UK. Built with Next.js 14, Firebase, Google Maps, and Stripe.
+> The UK's premier halal restaurant discovery platform
+
+A beautiful, conversion-focused platform connecting hungry customers with authentic halal restaurants across the UK. Built with Next.js 14, Google Maps, and a stunning foody design system.
+
+## 🎯 Live Demo
+
+**Homepage**: Full-screen interactive map with restaurant discovery  
+**Why Us**: Conversion-focused landing page  
+**Register**: Smart business registration with postcode validation  
+**Admin**: PIN-based dashboard (PIN: `123`)
+
+## ✨ Key Features
 
 ## Features
 
