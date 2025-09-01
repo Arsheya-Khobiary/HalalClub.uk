@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+             request.auth.token.role == 'admin';
+    }
+    
+    function isOwner(uid) {
+      return isAuthenticated() && 
+             request.auth.uid == uid;
+    }
+
+    // Public read access to restaurants
+    match /restaurants/{restaurantId} {
+      allow read: if true;
+      allow write: if isAdmin();
+      
+      // Reviews subcollection
+      match /reviews/{reviewId} {
+        allow read: if true;
+        allow create: if isAuthenticated() && 
+                         request.auth.uid == resource.data.uid &&
+                         resource.data.rating is number &&
+                         resource.data.rating >= 1 &&
+                         resource.data.rating <= 5;
+        allow update, delete: if isAuthenticated() && 
+                                 request.auth.uid == resource.data.uid;
+      }
+    }
+
+    // Submissions - businesses can create/update their own while pending
+    match /submissions/{submissionId} {
+      allow read: if isAdmin() || isOwner(resource.data.ownerUid);
+      allow create: if isAuthenticated() && 
+                       request.auth.uid == request.resource.data.ownerUid;
+      allow update: if isAdmin() || 
+                       (isOwner(resource.data.ownerUid) && 
+                        resource.data.status == 'pending');
+      allow delete: if isAdmin();
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin();
+      
+      // User favorites subcollection
+      match /favorites/{favoriteId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // Admin-only collections
+    match /admin/{document=**} {
+      allow read, write: if isAdmin();
+    }
+  }
+} 
