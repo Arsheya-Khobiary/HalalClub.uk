@@ -34,10 +34,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Skip auth if Firebase isn't initialized
+    if (!auth) {
+      setLoading(false)
+      return
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user)
       
-      if (user) {
+      if (user && db) {
         // Fetch user profile with role
         const userDoc = await getDoc(doc(db, 'users', user.uid))
         if (userDoc.exists()) {
@@ -64,10 +70,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signIn = async (email: string, password: string) => {
+    if (!auth) throw new Error('Auth not initialized')
     await signInWithEmailAndPassword(auth, email, password)
   }
 
   const signUp = async (email: string, password: string, displayName: string) => {
+    if (!auth || !db) throw new Error('Auth not initialized')
     const { user } = await createUserWithEmailAndPassword(auth, email, password)
     await updateProfile(user, { displayName })
     
@@ -81,11 +89,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signInWithGoogle = async () => {
+    if (!auth) throw new Error('Auth not initialized')
     const provider = new GoogleAuthProvider()
     await signInWithPopup(auth, provider)
   }
 
   const logout = async () => {
+    if (!auth) throw new Error('Auth not initialized')
     await signOut(auth)
   }
 
