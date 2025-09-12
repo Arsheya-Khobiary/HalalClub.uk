@@ -14,6 +14,7 @@ import { formatPrice, formatRating, cn } from '@/lib/utils'
 import { useMobile } from '@/components/ui/use-mobile'
 import { ReviewForm } from '@/components/ReviewForm'
 import { db, collection, getDocs, query, orderBy } from '@/lib/firebase'
+import { QueryDocumentSnapshot } from 'firebase/firestore'
 import { useQuery } from '@tanstack/react-query'
 import Image from 'next/image'
 
@@ -40,7 +41,7 @@ export function RestaurantModal({ restaurant, open, onClose }: RestaurantModalPr
         )
         const snapshot = await getDocs(q)
         const reviews: any[] = []
-        snapshot.forEach((doc) => {
+        snapshot.forEach((doc: QueryDocumentSnapshot) => {
           reviews.push({ id: doc.id, ...doc.data() })
         })
         return reviews

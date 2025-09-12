@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { db, collection, getDocs, query, limit } from '@/lib/firebase'
+import { QueryDocumentSnapshot } from 'firebase/firestore'
 import { Restaurant, Location, SearchFilters } from '@/types'
 import { calculateDistance } from '@/lib/utils'
 
@@ -103,7 +104,7 @@ export function useRestaurants({ center, radius, filters }: UseRestaurantsParams
             const q = query(collection(db, 'restaurants'), limit(100))
             const snapshot = await getDocs(q)
             const firebaseRestaurants: Restaurant[] = []
-            snapshot.forEach((doc) => {
+            snapshot.forEach((doc: QueryDocumentSnapshot) => {
               const data = doc.data()
               firebaseRestaurants.push({
                 id: doc.id,

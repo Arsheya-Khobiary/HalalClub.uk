@@ -188,7 +188,7 @@ export function RestaurantsMap({
     infoWindowRef.current.setContent(`
       <div class="p-2">
         <h3 class="font-semibold text-lg">${restaurant.name}</h3>
-        <p class="text-gray-600">${restaurant.cuisine}</p>
+        <p class="text-gray-600">${restaurant.cuisines.join(", ")}</p>
         <p class="text-sm text-gray-500">${restaurant.address}</p>
       </div>
     `)
