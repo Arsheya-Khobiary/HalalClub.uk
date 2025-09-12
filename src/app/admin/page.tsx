@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Star, MapPin, Search, Plus, Edit2, Trash2 } from 'lucide-react'
-import { Restaurant } from '@/types'
+import { Restaurant, Submission } from '@/types'
 import { Header } from '@/components/Header'
 import { db, collection, getDocs, doc, updateDoc, query, where, orderBy, addDoc, serverTimestamp } from '@/lib/firebase'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
