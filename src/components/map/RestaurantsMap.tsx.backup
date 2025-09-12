@@ -34,15 +34,13 @@ export function RestaurantsMap({
   onRadiusChange,
   onRestaurantSelect
 }: RestaurantsMapProps) {
+  const [map, setMap] = useState<google.maps.Map | null>(null)
   const [userLocation, setUserLocation] = useState<Location | null>(null)
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null)
+  const [infoWindow, setInfoWindow] = useState<google.maps.InfoWindow | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const lastCenterRef = useRef<Location>(center)
   const isInitializedRef = useRef(false)
-  const mapRef = useRef<google.maps.Map | null>(null)
-  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null)
-  const isMountedRef = useRef(true)
-  const circleRef = useRef<google.maps.Circle | null>(null)
 
   // Load Google Maps API
   const { isLoaded, loadError } = useJsApiLoader({
@@ -51,37 +49,11 @@ export function RestaurantsMap({
     libraries: ['places']
   })
 
-  // Cleanup effect
-  useEffect(() => {
-    isMountedRef.current = true
-    
-    return () => {
-      isMountedRef.current = false
-      // Clean up refs
-      mapRef.current = null
-      infoWindowRef.current = null
-      if (circleRef.current) {
-        circleRef.current.setMap(null)
-        circleRef.current = null
-      }
-    }
-  }, [])
-
-  // Update circle when radius or center changes
-  useEffect(() => {
-    if (circleRef.current && mapRef.current) {
-      circleRef.current.setCenter(center)
-      circleRef.current.setRadius(radius * 1000) // Convert km to meters
-    }
-  }, [center, radius])
-
   // Get user location
   const getUserLocation = useCallback(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          if (!isMountedRef.current) return
-          
           const userLoc = {
             lat: position.coords.latitude,
             lng: position.coords.longitude
@@ -98,111 +70,79 @@ export function RestaurantsMap({
 
   // Initialize map
   const onLoad = useCallback((map: google.maps.Map) => {
-    if (!isMountedRef.current) return
+    setMap(map)
     
-    try {
-      mapRef.current = map
-      
-      // Create info window
-      if (!infoWindowRef.current) {
-        infoWindowRef.current = new google.maps.InfoWindow()
-      }
-      
-      // Create circle directly with Google Maps API
-      if (!circleRef.current) {
-        circleRef.current = new google.maps.Circle({
-          center: center,
-          radius: radius * 1000, // Convert km to meters
-          fillColor: '#3B82F6',
-          fillOpacity: 0.2,
-          strokeColor: '#1D4ED8',
-          strokeOpacity: 0.8,
-          strokeWeight: 2,
-          map: map
-        })
-      }
-      
-      // Set initial center
-      if (!isInitializedRef.current) {
-        isInitializedRef.current = true
-        lastCenterRef.current = center
-      }
-    } catch (error) {
-      console.error('Error initializing map:', error)
+    // Create info window
+    const infoWindow = new google.maps.InfoWindow()
+    setInfoWindow(infoWindow)
+    
+    // Set initial center
+    if (!isInitializedRef.current) {
+      isInitializedRef.current = true
+      lastCenterRef.current = center
     }
-  }, [center, radius])
+  }, [center])
 
-  // Cleanup on unmount
   const onUnmount = useCallback(() => {
-    if (infoWindowRef.current) {
-      infoWindowRef.current.close()
-    }
-    if (circleRef.current) {
-      circleRef.current.setMap(null)
-      circleRef.current = null
-    }
-    mapRef.current = null
-    infoWindowRef.current = null
+    setMap(null)
   }, [])
 
-  // Handle drag start
+  // Handle restaurant marker click
+  const handleMarkerClick = (restaurant: Restaurant) => {
+    if (infoWindow) {
+      infoWindow.setContent(`
+        <div class="p-2">
+          <h3 class="font-bold text-lg">${restaurant.name}</h3>
+          <p class="text-gray-600">${restaurant.cuisines.join(', ')}</p>
+          <p class="text-sm text-gray-500">${restaurant.address}</p>
+        </div>
+      `)
+      infoWindow.open(map, null)
+    }
+    setSelectedRestaurant(restaurant)
+    onRestaurantSelect(restaurant)
+  }
+
+  // Handle map drag start
   const handleDragStart = useCallback(() => {
     setIsDragging(true)
   }, [])
 
-  // Handle drag end
+  // Handle map drag end
   const handleDragEnd = useCallback(() => {
-    if (!mapRef.current || !isMountedRef.current) return
-    
-    setIsDragging(false)
-    
-    const newCenter = {
-      lat: mapRef.current.getCenter()?.lat() || center.lat,
-      lng: mapRef.current.getCenter()?.lng() || center.lng
+    if (map && isDragging) {
+      const newCenter = map.getCenter()
+      if (newCenter) {
+        const newCenterLocation = { lat: newCenter.lat(), lng: newCenter.lng() }
+        
+        // Only update if center actually changed significantly
+        const latDiff = Math.abs(newCenterLocation.lat - lastCenterRef.current.lat)
+        const lngDiff = Math.abs(newCenterLocation.lng - lastCenterRef.current.lng)
+        
+        if (latDiff > 0.001 || lngDiff > 0.001) {
+          lastCenterRef.current = newCenterLocation
+          onCenterChange(newCenterLocation)
+        }
+      }
+      setIsDragging(false)
     }
-    
-    // Only update if center actually changed
-    if (newCenter.lat !== lastCenterRef.current.lat || newCenter.lng !== lastCenterRef.current.lng) {
-      lastCenterRef.current = newCenter
-      onCenterChange(newCenter)
-    }
-  }, [center, onCenterChange])
+  }, [map, isDragging, onCenterChange])
 
   // Handle radius change
-  const handleRadiusChange = useCallback((newRadius: number) => {
+  const handleRadiusChange = (newRadius: number) => {
     onRadiusChange(newRadius)
-  }, [onRadiusChange])
-
-  // Handle marker click
-  const handleMarkerClick = useCallback((restaurant: Restaurant) => {
-    if (!mapRef.current || !infoWindowRef.current) return
-    
-    setSelectedRestaurant(restaurant)
-    onRestaurantSelect(restaurant)
-    
-    const position = {
-      lat: (restaurant.location as any).lat || restaurant.location.latitude,
-      lng: (restaurant.location as any).lng || restaurant.location.longitude
-    }
-    
-    infoWindowRef.current.setContent(`
-      <div class="p-2">
-        <h3 class="font-semibold text-lg">${restaurant.name}</h3>
-        <p class="text-gray-600">${restaurant.cuisine}</p>
-        <p class="text-sm text-gray-500">${restaurant.address}</p>
-      </div>
-    `)
-    
-    infoWindowRef.current.setPosition(position)
-    infoWindowRef.current.open(mapRef.current)
-  }, [onRestaurantSelect])
+  }
 
   if (loadError) {
     return (
       <div className="h-full flex items-center justify-center bg-gray-100">
-        <div className="text-center">
-          <p className="text-red-600 mb-2">Error loading map</p>
-          <p className="text-sm text-gray-600">Please check your internet connection</p>
+        <div className="text-center p-6">
+          <div className="text-red-500 text-4xl mb-4">⚠️</div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">Map Loading Error</h3>
+          <p className="text-gray-600 mb-4">Unable to load Google Maps</p>
+          <Button onClick={() => window.location.reload()} variant="outline">
+            Retry
+          </Button>
         </div>
       </div>
     )
@@ -211,8 +151,8 @@ export function RestaurantsMap({
   if (!isLoaded) {
     return (
       <div className="h-full flex items-center justify-center bg-gray-100">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+        <div className="text-center p-6">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading map...</p>
         </div>
       </div>
@@ -312,6 +252,19 @@ export function RestaurantsMap({
             title={restaurant.name}
           />
         ))}
+
+        {/* Search Radius Circle */}
+        <Circle
+          center={center}
+          radius={radius * 1000} // Convert km to meters
+          options={{
+            fillColor: '#3B82F6',
+            fillOpacity: 0.3,
+            strokeColor: '#1D4ED8',
+            strokeOpacity: 0.8,
+            strokeWeight: 3
+          }}
+        />
       </GoogleMap>
 
       {/* Restaurant Modal */}

@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { collection, getDocs, query, limit } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+import { db, collection, getDocs, query, limit } from '@/lib/firebase'
 import { Restaurant, Location, SearchFilters } from '@/types'
 import { calculateDistance } from '@/lib/utils'
 
@@ -96,11 +95,33 @@ export function useRestaurants({ center, radius, filters }: UseRestaurantsParams
         // Simulate API delay
         await new Promise(resolve => setTimeout(resolve, 500))
         
-        // Get approved restaurants from localStorage
-        const approvedRestaurants = JSON.parse(localStorage.getItem('restaurants') || '[]')
+        // Get restaurants from Firebase
+        let allRestaurants = [...mockRestaurants]
         
-        // Combine mock data with approved restaurants
-        const allRestaurants = [...mockRestaurants, ...approvedRestaurants]
+        if (db) {
+          try {
+            const q = query(collection(db, 'restaurants'), limit(100))
+            const snapshot = await getDocs(q)
+            const firebaseRestaurants: Restaurant[] = []
+            snapshot.forEach((doc) => {
+              const data = doc.data()
+              firebaseRestaurants.push({
+                id: doc.id,
+                ...data,
+              } as Restaurant)
+            })
+            allRestaurants = [...mockRestaurants, ...firebaseRestaurants]
+          } catch (error) {
+            console.error('Error fetching restaurants from Firebase:', error)
+            // Fallback to localStorage
+            const approvedRestaurants = JSON.parse(localStorage.getItem('restaurants') || '[]')
+            allRestaurants = [...mockRestaurants, ...approvedRestaurants]
+          }
+        } else {
+          // Fallback to localStorage if Firebase not available
+          const approvedRestaurants = JSON.parse(localStorage.getItem('restaurants') || '[]')
+          allRestaurants = [...mockRestaurants, ...approvedRestaurants]
+        }
         
         // Filter combined data by distance and other criteria
         return allRestaurants.filter((restaurant) => {
@@ -143,4 +164,4 @@ export function useRestaurants({ center, radius, filters }: UseRestaurantsParams
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
-} 
+}

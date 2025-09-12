@@ -10,6 +10,8 @@ export interface Restaurant {
   phone: string;
   website?: string;
   halalCertified: boolean;
+  hygieneRating?: string;
+  openingHours?: string;
   bestItems: BestItem[];
   menu: MenuSection[];
   socials: {
@@ -20,6 +22,11 @@ export interface Restaurant {
   };
   gallery: string[];
   videos: string[];
+  certificates?: {
+    halal: string | null;
+    hygiene: string | null;
+    menuPdf: string | null;
+  };
   ratingAvg: number;
   ratingCount: number;
   createdAt: Timestamp;
@@ -105,4 +112,4 @@ export interface MapBounds {
 export interface Location {
   lat: number;
   lng: number;
-} 
+}

@@ -2,16 +2,15 @@
 
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { CheckCircle, XCircle, Eye, Clock, Users, MapPin, Lock, Shield } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Star, MapPin, Search, Plus, Edit2, Trash2 } from 'lucide-react'
+import { Restaurant } from '@/types'
+import { Header } from '@/components/Header'
+import { db, collection, getDocs, doc, updateDoc, query, where, orderBy, addDoc, serverTimestamp } from '@/lib/firebase'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { collection, getDocs, doc, updateDoc, query, where } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
-import { Submission } from '@/types'
 import { toast } from 'sonner'
 
 const ADMIN_PIN = '123'
@@ -60,68 +59,114 @@ export default function AdminPage() {
     setPin('')
   }
 
-  // Fetch submissions (from localStorage for demo)
+  // Fetch submissions from Firebase
   const { data: submissions = [], isLoading } = useQuery({
     queryKey: ['submissions'],
     queryFn: async () => {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      // Get submissions from localStorage (demo mode)
-      const storedSubmissions = JSON.parse(localStorage.getItem('submissions') || '[]')
-      return storedSubmissions.sort((a: any, b: any) => b.createdAt.seconds - a.createdAt.seconds)
+      try {
+        if (db) {
+          // Get from Firebase
+          const q = query(collection(db, 'submissions'), orderBy('createdAt', 'desc'))
+          const snapshot = await getDocs(q)
+          const submissions: Submission[] = []
+          snapshot.forEach((doc) => {
+            submissions.push({ id: doc.id, ...doc.data() } as Submission)
+          })
+          return submissions
+        } else {
+          // Fallback to localStorage
+          await new Promise(resolve => setTimeout(resolve, 500))
+          const storedSubmissions = JSON.parse(localStorage.getItem('submissions') || '[]')
+          return storedSubmissions.sort((a: any, b: any) => b.createdAt.seconds - a.createdAt.seconds)
+        }
+      } catch (error) {
+        console.error('Error fetching submissions:', error)
+        // Fallback to localStorage on error
+        const storedSubmissions = JSON.parse(localStorage.getItem('submissions') || '[]')
+        return storedSubmissions.sort((a: any, b: any) => b.createdAt.seconds - a.createdAt.seconds)
+      }
     },
     enabled: isAuthenticated,
   })
 
-  // Update submission status (localStorage for demo)
+  // Update submission status with Firebase
   const updateSubmissionMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: 'approved' | 'rejected' }) => {
-      // Update in localStorage for demo
-      const storedSubmissions = JSON.parse(localStorage.getItem('submissions') || '[]')
-      const updatedSubmissions = storedSubmissions.map((sub: any) => 
-        sub.id === id 
-          ? { ...sub, status, updatedAt: { seconds: Math.floor(Date.now() / 1000) } }
-          : sub
-      )
-      localStorage.setItem('submissions', JSON.stringify(updatedSubmissions))
-      
-      // If approved, add to main restaurants list for homepage
-      if (status === 'approved') {
-        const approvedSubmission = storedSubmissions.find((sub: any) => sub.id === id)
-        if (approvedSubmission) {
-          // Convert submission to restaurant format
-          const restaurant = {
-            id: `restaurant_${Date.now()}`,
-            name: approvedSubmission.name,
-            cuisines: approvedSubmission.cuisines,
-            address: approvedSubmission.address,
-            postcode: approvedSubmission.postcode,
-            location: approvedSubmission.location,
-            phone: approvedSubmission.phone,
-            website: approvedSubmission.website,
-            halalCertified: approvedSubmission.halalCertified,
-            bestItems: approvedSubmission.bestItems,
-            menu: approvedSubmission.menu,
-            socials: approvedSubmission.socials,
-            gallery: approvedSubmission.gallery,
-            videos: approvedSubmission.videos,
-            ratingAvg: 0,
-            ratingCount: 0,
-            createdAt: { seconds: Math.floor(Date.now() / 1000) },
-            updatedAt: { seconds: Math.floor(Date.now() / 1000) },
-            ownerUid: approvedSubmission.ownerUid,
-          }
+      try {
+        if (db) {
+          // Update in Firebase
+          await updateDoc(doc(db, 'submissions', id), {
+            status,
+            updatedAt: serverTimestamp(),
+          })
           
-          // Add to restaurants list (this will show on homepage)
-          const existingRestaurants = JSON.parse(localStorage.getItem('restaurants') || '[]')
-          existingRestaurants.push(restaurant)
-          localStorage.setItem('restaurants', JSON.stringify(existingRestaurants))
+          // If approved, add to restaurants collection
+          if (status === 'approved') {
+            // Get the submission data
+            const submissionDoc = await getDocs(query(collection(db, 'submissions'), where('__name__', '==', id)))
+            if (!submissionDoc.empty) {
+              const submissionData = submissionDoc.docs[0].data()
+              
+              // Create restaurant document
+              const restaurant = {
+                name: submissionData.name,
+                cuisines: submissionData.cuisines,
+                address: submissionData.address,
+                postcode: submissionData.postcode,
+                location: submissionData.location,
+                phone: submissionData.phone,
+                website: submissionData.website,
+                halalCertified: submissionData.halalCertified,
+                hygieneRating: submissionData.hygieneRating,
+                openingHours: submissionData.openingHours,
+                bestItems: submissionData.bestItems,
+                menu: submissionData.menu,
+                socials: submissionData.socials,
+                gallery: submissionData.gallery,
+                videos: submissionData.videos,
+                certificates: submissionData.certificates,
+                ratingAvg: 0,
+                ratingCount: 0,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+                ownerUid: submissionData.ownerUid,
+              }
+              
+              // Add to restaurants collection
+              await addDoc(collection(db, 'restaurants'), restaurant)
+            }
+          }
+        } else {
+          // Fallback to localStorage
+          const storedSubmissions = JSON.parse(localStorage.getItem('submissions') || '[]')
+          const updatedSubmissions = storedSubmissions.map((sub: any) => 
+            sub.id === id 
+              ? { ...sub, status, updatedAt: { seconds: Math.floor(Date.now() / 1000) } }
+              : sub
+          )
+          localStorage.setItem('submissions', JSON.stringify(updatedSubmissions))
+          
+          if (status === 'approved') {
+            const approvedSubmission = storedSubmissions.find((sub: any) => sub.id === id)
+            if (approvedSubmission) {
+              const existingRestaurants = JSON.parse(localStorage.getItem('restaurants') || '[]')
+              existingRestaurants.push({
+                ...approvedSubmission,
+                id: `restaurant_${Date.now()}`,
+                ratingAvg: 0,
+                ratingCount: 0,
+              })
+              localStorage.setItem('restaurants', JSON.stringify(existingRestaurants))
+            }
+          }
         }
+        
+        // Simulate API delay
+        await new Promise(resolve => setTimeout(resolve, 300))
+      } catch (error) {
+        console.error('Error updating submission:', error)
+        throw error
       }
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 300))
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['submissions'] })

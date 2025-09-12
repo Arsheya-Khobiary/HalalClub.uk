@@ -11,8 +11,10 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { Star, Phone, Globe, MapPin, Clock, Heart, Share2, X } from 'lucide-react'
 import { Restaurant } from '@/types'
 import { formatPrice, formatRating, cn } from '@/lib/utils'
-import { useAuth } from '@/contexts/AuthContext'
 import { useMobile } from '@/components/ui/use-mobile'
+import { ReviewForm } from '@/components/ReviewForm'
+import { db, collection, getDocs, query, orderBy } from '@/lib/firebase'
+import { useQuery } from '@tanstack/react-query'
 import Image from 'next/image'
 
 interface RestaurantModalProps {
@@ -23,8 +25,32 @@ interface RestaurantModalProps {
 
 export function RestaurantModal({ restaurant, open, onClose }: RestaurantModalProps) {
   const isMobile = useMobile()
-  const { user } = useAuth()
   const [activeTab, setActiveTab] = useState('menu')
+
+  // Fetch reviews from Firebase
+  const { data: reviews = [], refetch: refetchReviews } = useQuery({
+    queryKey: ['reviews', restaurant.id],
+    queryFn: async () => {
+      if (!db) return []
+      
+      try {
+        const q = query(
+          collection(db, 'restaurants', restaurant.id, 'reviews'),
+          orderBy('createdAt', 'desc')
+        )
+        const snapshot = await getDocs(q)
+        const reviews: any[] = []
+        snapshot.forEach((doc) => {
+          reviews.push({ id: doc.id, ...doc.data() })
+        })
+        return reviews
+      } catch (error) {
+        console.error('Error fetching reviews:', error)
+        return []
+      }
+    },
+    enabled: open,
+  })
 
   const handleShare = async () => {
     if (navigator.share) {
@@ -67,203 +93,206 @@ export function RestaurantModal({ restaurant, open, onClose }: RestaurantModalPr
             >
               <Share2 className="h-5 w-5" />
             </Button>
-            {user && (
-              <Button 
-                variant="ghost"
-                className="h-11 rounded-xl px-4 hover:bg-gray-100 transition-all duration-200"
-              >
-                <Heart className="h-5 w-5" />
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Top 3-Panel Grid (Desktop) / Stacked (Mobile) */}
-      <div className={cn(
-        "p-5 md:p-6 border-b border-black/5",
-        isMobile ? "space-y-6" : "grid grid-cols-3 gap-4 md:gap-6"
-      )}>
-        {/* Best Sellers */}
-        <div className="rounded-2xl bg-white border border-black/5 shadow-soft p-4">
-          <h3 className="text-lg md:text-xl font-bold text-charcoal mb-4">🔥 Best Sellers</h3>
-          <Carousel className="w-full">
-            <CarouselContent>
-              {restaurant.bestItems.map((item) => (
-                <CarouselItem key={item.id}>
-                  <div className="space-y-3">
-                    <div className="aspect-[16/10] rounded-xl overflow-hidden ring-1 ring-black/5">
-                      <Image
-                        src={item.imageUrl}
-                        alt={item.name}
-                        fill
-                        className="object-cover hover:scale-105 transition-transform duration-300"
-                      />
-                    </div>
-                    <div className="mt-3 flex items-center justify-between">
-                      <div>
-                        <h4 className="font-semibold text-base md:text-lg text-charcoal">{item.name}</h4>
-                        <p className="text-sm md:text-base text-gray-600">{item.description}</p>
-                      </div>
-                      <p className="font-bold text-lg md:text-xl text-primary">{formatPrice(item.price)}</p>
-                    </div>
-                  </div>
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-            <CarouselPrevious />
-            <CarouselNext />
-          </Carousel>
-        </div>
-
-        {/* Reviews */}
-        <div className="rounded-2xl bg-white border border-black/5 shadow-soft p-4">
-          <div className="flex items-center gap-2 mb-4">
-            <h3 className="text-lg md:text-xl font-bold text-charcoal">⭐ Reviews</h3>
-            <div className="flex items-center gap-1 text-amber-500 text-xl md:text-2xl">
-              <Star className="h-5 w-5 md:h-6 md:w-6 fill-current" />
-              <span className="text-base md:text-lg font-bold text-charcoal">
-                {formatRating(restaurant.ratingAvg)}
-              </span>
-              <span className="text-sm md:text-base text-gray-500">
-                ({restaurant.ratingCount})
-              </span>
-            </div>
-          </div>
-          
-          <div className="space-y-3">
-            {/* Mock reviews - in real app, fetch from subcollection */}
-            <div className="rounded-xl bg-gray-50 p-3 md:p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="flex">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star
-                      key={star}
-                      className={cn(
-                        "h-4 w-4",
-                        star <= 5 ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
-                      )}
-                    />
-                  ))}
-                </div>
-                <span className="text-sm md:text-base font-semibold text-charcoal">Sarah M.</span>
-              </div>
-              <p className="text-sm md:text-base text-gray-700">
-                Amazing food and great service! The lamb biryani was exceptional.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Info & Actions */}
-        <div className="rounded-2xl bg-white border border-black/5 shadow-soft p-4">
-          <h3 className="text-lg md:text-xl font-bold text-charcoal mb-4">📍 Quick Info</h3>
-          
-          <div className="space-y-3 mb-6">
-            <div className="flex items-center gap-3">
-              <Clock className="h-5 w-5 text-gray-500" />
-              <span className="text-sm md:text-base text-gray-700">Open until 10:00 PM</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <Phone className="h-5 w-5 text-gray-500" />
-              <span className="text-sm md:text-base text-gray-700">{restaurant.phone}</span>
-            </div>
-            {restaurant.website && (
-              <div className="flex items-center gap-3">
-                <Globe className="h-5 w-5 text-gray-500" />
-                <a 
-                  href={restaurant.website} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-sm md:text-base text-primary hover:underline font-medium"
-                >
-                  Visit Website
-                </a>
-              </div>
-            )}
-          </div>
-          
-          <div className="space-y-3">
-            <Button className="h-11 rounded-xl w-full bg-primary text-white hover:bg-emerald-600 font-semibold">
-              <MapPin className="h-5 w-5 mr-2" />
-              Get Directions
-            </Button>
-            <Button className="h-11 rounded-xl w-full bg-white border border-gray-200 text-gray-900 hover:bg-gray-50 font-semibold">
-              <Phone className="h-5 w-5 mr-2" />
-              Call Now
+            <Button 
+              variant="ghost"
+              className="h-11 rounded-xl px-4 hover:bg-gray-100 transition-all duration-200"
+            >
+              <Heart className="h-5 w-5" />
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Bottom Full-Width Tabs */}
-      <div className="flex-1 px-5 md:px-6 pb-5 md:pb-6">
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
-          <div className="rounded-2xl bg-gray-100 p-1 inline-flex gap-1 mb-4">
-            <button
-              onClick={() => setActiveTab('menu')}
-              className={`px-4 py-2 text-sm md:text-base rounded-xl transition-all duration-200 ${
-                activeTab === 'menu' ? 'bg-white shadow text-charcoal font-semibold' : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
+          <TabsList className="grid w-full grid-cols-4 rounded-none border-b bg-transparent p-0">
+            <TabsTrigger value="menu" className="rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-primary data-[state=active]:text-primary">
               Menu
-            </button>
-            <button
-              onClick={() => setActiveTab('gallery')}
-              className={`px-4 py-2 text-sm md:text-base rounded-xl transition-all duration-200 ${
-                activeTab === 'gallery' ? 'bg-white shadow text-charcoal font-semibold' : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
+            </TabsTrigger>
+            <TabsTrigger value="gallery" className="rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-primary data-[state=active]:text-primary">
               Gallery
-            </button>
-            <button
-              onClick={() => setActiveTab('offers')}
-              className={`px-4 py-2 text-sm md:text-base rounded-xl transition-all duration-200 ${
-                activeTab === 'offers' ? 'bg-white shadow text-charcoal font-semibold' : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
+            </TabsTrigger>
+            <TabsTrigger value="reviews" className="rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-primary data-[state=active]:text-primary">
+              Reviews
+            </TabsTrigger>
+            <TabsTrigger value="offers" className="rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-primary data-[state=active]:text-primary">
               Offers
-            </button>
-          </div>
-          
-          <div className="rounded-2xl border border-black/5 bg-white shadow-soft p-4 md:p-6 max-h-[28vh] overflow-y-auto">
+            </TabsTrigger>
+          </TabsList>
+
+          <div className="p-5 md:p-6">
             {activeTab === 'menu' && (
               <div className="space-y-6">
-                {restaurant.menu.map((section) => (
-                  <div key={section.section}>
-                    <h3 className="text-lg md:text-xl font-bold text-charcoal mb-4">{section.section}</h3>
-                    <div className="space-y-3">
-                      {section.items.map((item, index) => (
-                        <div key={index} className="flex justify-between items-start py-2 border-b border-gray-100 last:border-0">
-                          <div>
-                            <h4 className="font-semibold text-base md:text-lg text-charcoal">{item.name}</h4>
-                            {item.description && (
-                              <p className="text-sm md:text-base text-gray-600 mt-1">{item.description}</p>
-                            )}
-                          </div>
-                          <span className="font-bold text-lg md:text-xl text-primary ml-4">
-                            {formatPrice(item.price)}
-                          </span>
+                {/* Restaurant Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <MapPin className="h-5 w-5 text-gray-500" />
+                      <div>
+                        <p className="font-semibold text-charcoal">Address</p>
+                        <p className="text-gray-600">{restaurant.address}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Phone className="h-5 w-5 text-gray-500" />
+                      <div>
+                        <p className="font-semibold text-charcoal">Phone</p>
+                        <a href={`tel:${restaurant.phone}`} className="text-primary hover:underline">
+                          {restaurant.phone}
+                        </a>
+                      </div>
+                    </div>
+                    {restaurant.website && (
+                      <div className="flex items-center gap-3">
+                        <Globe className="h-5 w-5 text-gray-500" />
+                        <div>
+                          <p className="font-semibold text-charcoal">Website</p>
+                          <a href={restaurant.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                            Visit Website
+                          </a>
                         </div>
-                      ))}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-3">
+                      <Clock className="h-5 w-5 text-gray-500" />
+                      <div>
+                        <p className="font-semibold text-charcoal">Opening Hours</p>
+                        <p className="text-gray-600">{restaurant.openingHours || 'Contact for hours'}</p>
+                      </div>
                     </div>
                   </div>
-                ))}
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <Star className="h-5 w-5 text-yellow-500" />
+                      <div>
+                        <p className="font-semibold text-charcoal">Rating</p>
+                        <p className="text-gray-600">{formatRating(restaurant.ratingAvg)}</p>
+                      </div>
+                    </div>
+                                          <div>
+                        <p className="font-semibold text-charcoal">Price Range</p>
+                        <p className="text-gray-600">Contact for pricing</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-charcoal">Best Items</p>
+                        <p className="text-gray-600">{restaurant.bestItems.length} items available</p>
+                      </div>
+                  </div>
+                </div>
+
+                {/* Certificates */}
+                {(restaurant as any).certificates && (
+                  <div>
+                    <h4 className="text-lg font-bold text-charcoal mb-4">📄 Certificates</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {(restaurant as any).certificates.halal && (
+                        <div className="p-4 rounded-2xl border border-primary/20 bg-primary/5">
+                          <div className="flex items-center gap-3">
+                            <span className="text-2xl">✅</span>
+                            <div>
+                              <h5 className="font-semibold text-primary">Halal Certificate</h5>
+                              <p className="text-sm text-gray-600">{(restaurant as any).certificates.halal}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {(restaurant as any).certificates.hygiene && (
+                        <div className="p-4 rounded-2xl border border-accent/20 bg-accent/5">
+                          <div className="flex items-center gap-3">
+                            <span className="text-2xl">🏥</span>
+                            <div>
+                              <h5 className="font-semibold text-accent">Hygiene Certificate</h5>
+                              <p className="text-sm text-gray-600">{(restaurant as any).certificates.hygiene}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Hygiene Rating */}
+                {(restaurant as any).hygieneRating && (
+                  <div>
+                    <h4 className="text-lg font-bold text-charcoal mb-4">🏥 Food Hygiene Rating</h4>
+                    <div className="p-4 rounded-2xl bg-white border border-gray-200">
+                      <div className="flex items-center gap-3">
+                        <div className="text-3xl">
+                          {'⭐'.repeat(parseInt((restaurant as any).hygieneRating || '0'))}
+                        </div>
+                        <div>
+                          <p className="font-bold text-xl text-charcoal">{(restaurant as any).hygieneRating}/5</p>
+                          <p className="text-sm text-gray-600">Food Standards Agency Rating</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
-          
+            
             {activeTab === 'gallery' && (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {restaurant.gallery.map((image, index) => (
-                  <div key={index} className="aspect-square relative rounded-2xl overflow-hidden ring-1 ring-black/5">
-                    <Image
-                      src={image}
-                      alt={`${restaurant.name} gallery ${index + 1}`}
-                      fill
-                      className="object-cover hover:scale-105 transition-transform duration-300"
-                    />
+              <div className="space-y-6">
+                <h3 className="text-xl font-bold text-charcoal">Photo Gallery</h3>
+                {restaurant.gallery && restaurant.gallery.length > 0 ? (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {restaurant.gallery.map((image, index) => (
+                      <div key={index} className="aspect-square rounded-xl overflow-hidden">
+                        <img
+                          src={image}
+                          alt={`Gallery ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ))}
                   </div>
-                ))}
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    No gallery images available
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'reviews' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-charcoal">Reviews</h3>
+                  <ReviewForm restaurantId={restaurant.id} onReviewSubmitted={refetchReviews} />
+                </div>
+                
+                {reviews.length > 0 ? (
+                  <div className="space-y-4">
+                    {reviews.map((review: any) => (
+                      <div key={review.id} className="p-4 rounded-xl border border-gray-200 bg-gray-50">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="flex text-yellow-400">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                className={cn(
+                                  "h-4 w-4",
+                                  i < review.rating ? "fill-current" : "fill-none"
+                                )}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-sm text-gray-600">{review.rating}/5</span>
+                        </div>
+                        <p className="text-gray-800 mb-2">{review.comment}</p>
+                        <p className="text-sm text-gray-500">
+                          {review.userName} • {new Date(review.createdAt?.toDate() || review.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    No reviews yet. Be the first to review!
+                  </div>
+                )}
               </div>
             )}
             
@@ -311,7 +340,7 @@ export function RestaurantModal({ restaurant, open, onClose }: RestaurantModalPr
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-        <div className="w-[70vw] h-[70vh] max-w-none rounded-3xl overflow-hidden bg-white shadow-2xl relative">
+        <div className="w-[85vw] h-[85vh] max-w-none rounded-3xl overflow-hidden bg-white shadow-2xl relative">
           {/* Close Button */}
           <button
             onClick={onClose}
@@ -325,3 +354,4 @@ export function RestaurantModal({ restaurant, open, onClose }: RestaurantModalPr
     </Dialog>
   )
 }
+
