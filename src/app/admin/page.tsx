@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Star, MapPin, Search, Plus, Edit2, Trash2 } from 'lucide-react'
 import { Restaurant, Submission } from '@/types'
 import { Header } from '@/components/Header'
-import { db, collection, getDocs, doc, updateDoc, query, where, orderBy, addDoc, serverTimestamp } from '@/lib/firebase'
+import { db, collection, getDocs, doc, updateDoc, query, where, orderBy, addDoc, serverTimestamp, QueryDocumentSnapshot } from '@/lib/firebase'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
@@ -69,7 +69,7 @@ export default function AdminPage() {
           const q = query(collection(db, 'submissions'), orderBy('createdAt', 'desc'))
           const snapshot = await getDocs(q)
           const submissions: Submission[] = []
-          snapshot.forEach((doc) => {
+          snapshot.forEach((doc: QueryDocumentSnapshot) => {
             submissions.push({ id: doc.id, ...doc.data() } as Submission)
           })
           return submissions
