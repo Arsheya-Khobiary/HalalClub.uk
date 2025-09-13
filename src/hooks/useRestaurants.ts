@@ -19,6 +19,7 @@ const mockRestaurants: Restaurant[] = [
     address: "123 Ladypool Road, Sparkbrook, Birmingham",
     postcode: "B11 1JA",
     location: { latitude: 52.4625, longitude: -1.8848 } as any,
+    verified: true,
     phone: "0121 449 0712",
     website: "https://al-madina-birmingham.co.uk",
     halalCertified: true,
@@ -56,6 +57,7 @@ const mockRestaurants: Restaurant[] = [
     address: "45 Green Street, London",
     postcode: "E7 8JF",
     location: { latitude: 51.5385, longitude: 0.0342 } as any,
+    verified: true,
     phone: "020 8472 3456",
     halalCertified: true,
     bestItems: [

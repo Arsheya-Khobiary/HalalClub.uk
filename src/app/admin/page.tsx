@@ -22,7 +22,7 @@ export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [pin, setPin] = useState('')
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null)
-  const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected'>('pending')
+  const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected' | 'live'>('pending')
   const queryClient = useQueryClient()
 
   // Check if already authenticated from localStorage
@@ -92,6 +92,35 @@ export default function AdminPage() {
     enabled: isAuthenticated,
   })
 
+  // Fetch live restaurants from Firebase
+  const { data: liveRestaurants = [] } = useQuery({
+    queryKey: ['live-restaurants'],
+    queryFn: async () => {
+      try {
+        if (db) {
+          // Get from Firebase restaurants collection
+          const q = query(collection(db, 'restaurants'), orderBy('createdAt', 'desc'))
+          const snapshot = await getDocs(q)
+          const restaurants: Restaurant[] = []
+          snapshot.forEach((doc: QueryDocumentSnapshot) => {
+            restaurants.push({ id: doc.id, ...doc.data() } as Restaurant)
+          })
+          return restaurants
+        } else {
+          // Fallback to localStorage
+          await new Promise(resolve => setTimeout(resolve, 300))
+          const storedRestaurants = JSON.parse(localStorage.getItem('restaurants') || '[]')
+          return storedRestaurants.sort((a: any, b: any) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+        }
+      } catch (error) {
+        console.error('Error fetching live restaurants:', error)
+        const storedRestaurants = JSON.parse(localStorage.getItem('restaurants') || '[]')
+        return storedRestaurants.sort((a: any, b: any) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+      }
+    },
+    enabled: isAuthenticated,
+  })
+
   // Update submission status with Firebase
   const updateSubmissionMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: 'approved' | 'rejected' }) => {
@@ -130,9 +159,11 @@ export default function AdminPage() {
                 certificates: submissionData.certificates,
                 ratingAvg: 0,
                 ratingCount: 0,
+                verified: true,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
                 ownerUid: submissionData.ownerUid,
+                verified: true,
               }
               
               // Add to restaurants collection
@@ -158,6 +189,7 @@ export default function AdminPage() {
                 id: `restaurant_${Date.now()}`,
                 ratingAvg: 0,
                 ratingCount: 0,
+                verified: true,
               })
               localStorage.setItem('restaurants', JSON.stringify(existingRestaurants))
             }
@@ -382,6 +414,14 @@ export default function AdminPage() {
                 >
                   Rejected ({rejectedSubmissions.length})
                 </button>
+                <button 
+                  onClick={() => setActiveTab('live')}
+                  className={`px-4 py-2 rounded-lg text-sm md:text-base transition-all duration-200 ${
+                    activeTab === 'live' ? 'bg-white shadow text-charcoal font-semibold' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Live ({liveRestaurants.length})
+                </button>
               </div>
 
               {activeTab === 'pending' && (
@@ -405,6 +445,54 @@ export default function AdminPage() {
                   submissions={rejectedSubmissions}
                   onView={setSelectedSubmission}
                 />
+              )}
+              
+              {activeTab === 'live' && (
+                <div className="space-y-4">
+                  {liveRestaurants.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                        <span className="text-2xl">🍽️</span>
+                      </div>
+                      <h3 className="text-lg font-semibold text-charcoal mb-2">No Live Restaurants</h3>
+                      <p className="text-base text-gray-600">No restaurants are currently live on the homepage</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {liveRestaurants.map((restaurant) => (
+                        <div key={restaurant.id} className="card-shell p-4">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
+                              <span className="text-xl">🍽️</span>
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-charcoal flex items-center gap-2">
+                                {restaurant.name}
+                                <CheckCircle className="h-4 w-4 text-green-500" />
+                              </h3>
+                              <p className="text-sm text-gray-600">{restaurant.address}</p>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2 mb-3">
+                            {restaurant.cuisines.map((cuisine) => (
+                              <span key={cuisine} className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full">
+                                {cuisine}
+                              </span>
+                            ))}
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600">
+                              {restaurant.ratingCount} reviews
+                            </span>
+                            <span className="text-sm font-medium text-charcoal">
+                              ⭐ {restaurant.ratingAvg.toFixed(1)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>

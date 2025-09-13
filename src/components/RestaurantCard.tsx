@@ -2,7 +2,7 @@
 
 import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
-import { Star, MapPin, Clock, Phone } from "lucide-react"
+import { Star, MapPin, Clock, Phone, CheckCircle } from "lucide-react"
 import { Restaurant, Location } from "@/types"
 import { formatPrice, formatRating, calculateDistance } from "@/lib/utils"
 import Image from "next/image"
@@ -43,8 +43,11 @@ export function RestaurantCard({
         </div>
         
         <div className="min-w-0">
-          <h3 className="text-lg md:text-xl font-bold tracking-tight text-charcoal mb-2 truncate">
+          <h3 className="text-lg md:text-xl font-bold tracking-tight text-charcoal mb-2 truncate flex items-center gap-2">
             {restaurant.name}
+            {restaurant.verified && (
+              <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
+            )}
           </h3>
           
           <div className="flex flex-wrap gap-2 mb-3">
@@ -116,8 +119,11 @@ export function RestaurantCard({
       {/* Content */}
       <div className="p-5 md:p-6 flex flex-col gap-3">
         <div>
-          <h3 className="text-lg md:text-xl font-bold tracking-tight text-charcoal mb-2 line-clamp-1">
+          <h3 className="text-lg md:text-xl font-bold tracking-tight text-charcoal mb-2 line-clamp-1 flex items-center gap-2">
             {restaurant.name}
+            {restaurant.verified && (
+              <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
+            )}
           </h3>
           
           {/* Meta Row - Cuisine Tags + Rating */}

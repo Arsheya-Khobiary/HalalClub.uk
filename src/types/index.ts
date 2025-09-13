@@ -28,6 +28,7 @@ export interface Restaurant {
     menuPdf: string | null;
   };
   ratingAvg: number;
+  verified?: boolean;
   ratingCount: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
