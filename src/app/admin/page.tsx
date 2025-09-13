@@ -163,7 +163,6 @@ export default function AdminPage() {
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
                 ownerUid: submissionData.ownerUid,
-                verified: true,
               }
               
               // Add to restaurants collection
@@ -459,7 +458,7 @@ export default function AdminPage() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {liveRestaurants.map((restaurant) => (
+                      {liveRestaurants.map((restaurant: Restaurant) => (
                         <div key={restaurant.id} className="card-shell p-4">
                           <div className="flex items-center gap-3 mb-3">
                             <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
